@@ -5092,6 +5092,14 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
   double freqx1;
   double freqx2;
   double dxx;
+  double row_totals[3];
+  double col_totals[3];
+  double total;
+  double expected;
+  double observed;
+  double chisq;
+  uint32_t i;
+  uint32_t j;
   uint32_t xstart2;
   uint32_t xend2;
   uint32_t x2_present;
@@ -5177,6 +5185,17 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
 	    counts[17] = tot1[5] - counts[15] - counts[16];
 	  }
 	}
+
+    // printf("Length of tot1 array: %d\n", (int)( sizeof(tot1) / sizeof(tot1[0]) ));
+    // printf("Total1: %d,%d,%d,%d,%d,%d\n", tot1[0], tot1[1], tot1[2], tot1[3], tot1[4], tot1[5]);
+    // printf("Length of tot2 array: %d\n", (int)( sizeof(tot2) / sizeof(tot2[0]) ));
+    // printf("Total2: %d,%d\n", tot2[0], tot2[1]);
+    // printf("Length of cur_tot2 array: %d\n", (int)( sizeof(cur_tot2) / sizeof(cur_tot2[0]) ));
+    // printf("cur_tot2: %d,%d\n", cur_tot2[0], cur_tot2[1]);
+
+    // num_expected = (counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5] + counts[6] + counts[7] + counts[8]) / 9;
+    // printf("Total: \nNum expected: %f\n", num_expected);
+
 	if (em_phase_hethet_nobase(counts, is_x1, is_x2, &freq1x, &freq2x, &freqx1, &freqx2, &freq11)) {
 	  *rptr++ = NAN;
 	  *rptr++ = NAN;
@@ -5186,10 +5205,14 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
 	// a bit of numeric instability here, but not tragic since this is the
 	// end of the calculation
 	dxx = freq11 - freq11_expected; // D
+    // printf("dxx %f, freq11 %f, freq11_expected %f\n", dxx, freq11, freq11_expected);
+    // printf("freq1x %f, freqx1 %f, freqx2 %f, freq2x %f\n", freq1x, freqx1, freqx2, freq2x);
+    // printf("freq1x %f, freqx1 %f, freqx2 %f, freq2x %f\n", freq1x, freqx1, freqx2, freq2x);
 	if (fabs(dxx) < SMALL_EPSILON) {
 	  *rptr++ = 0;
 	  *rptr = 0;
 	} else {
+
 	  if (is_r2) {
 	    *rptr = fabs(dxx) * dxx / (freq11_expected * freq2x * freqx2);
 	  } else {
@@ -5206,6 +5229,40 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
 	      dxx /= MINV(freq11_expected, freqx2 * freq2x);
 	    }
 	  }
+      // Calculate chi-square and store in DPrime strong_lowci_outer
+      // TODO Add command line params and check appropriately
+      // TODO Update header in output (vased on params)
+      // TODO Account for cases where a SNP is missing a value (col or row sum is zero)
+      // TODO Account for sex chromosomes
+      if (1) {
+          for (i = 0; i <= 2; i++) {
+              row_totals[i] = counts[i*3] + counts[i*3+1] + counts[i*3+2];
+          }
+
+          for (i = 0; i <= 2; i++) {
+              col_totals[i] = counts[0+i] + counts[3+i] + counts[6+i];
+          }
+
+          total = counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5] + counts[6] + counts[7] + counts[8];
+
+        //   printf("\n");
+        //   printf("\nLength of counts array: %d\n", (int)( sizeof(counts) / sizeof(counts[0]) ));
+        //   printf("%d,%d,%d\n", counts[0], counts[1], counts[2]);
+        //   printf("%d,%d,%d\n", counts[3], counts[4], counts[5]);
+        //   printf("%d,%d,%d\n", counts[6], counts[7], counts[8]);
+          chisq = 0;
+          for (i = 0; i <= 2; i++) {
+              for (j = 0; j <= 2; j++) {
+                  expected = (row_totals[i] * col_totals[j]) / total;
+                  observed = counts[((i*3) + j)];
+                //   printf("O:%f E:%f, ", observed, expected);
+                  chisq = chisq + (pow((observed - expected), 2) / expected);
+              }
+            //   printf("\n");
+          }
+          dxx = chisq;
+        //   printf("chi-square: %f\n", chisq);
+      }
 	  *rptr = dxx;
 	}
 	rptr++;
