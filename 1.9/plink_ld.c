@@ -36,6 +36,7 @@ void ld_epi_init(Ld_info* ldip, Epi_info* epi_ip, Clump_info* clump_ip) {
   ldip->window_bp = 0xffffffffU;
   ldip->window_cm = -1;
   ldip->window_r2 = 0.2;
+  ldip->window_cs = 2;
   ldip->blocks_max_bp = 0xffffffffU;
   ldip->blocks_min_maf = 0.05;
   ldip->blocks_strong_lowci_outer = 71;
@@ -2666,9 +2667,11 @@ uint32_t ld_regular_emitn(uint32_t overflow_ct, unsigned char* readbuf) {
       sptr_cur = memcpya(sptr_cur, "      MAF_B", 11);
     }
     sptr_cur = memseta(sptr_cur, 32, 11);
-    sptr_cur = memcpyl3a(sptr_cur, is_r2? "R2 " : " R ");
+    //sptr_cur = memcpyl3a(sptr_cur, is_r2? "R2 " : " R ");
+    sptr_cur = memcpyl3a(sptr_cur, is_r2? " P " : " R ");
     if (dprime_type) {
-      sptr_cur = memcpya(sptr_cur, (dprime_type == LD_D)? "           D " : "          DP ", 13);
+      //sptr_cur = memcpya(sptr_cur, (dprime_type == LD_D)? "           D " : "          DP ", 13);
+      sptr_cur = memcpya(sptr_cur, (dprime_type == LD_D)? "           D " : "       CHISQ ", 13);
     }
     *sptr_cur++ = '\n';
   }
@@ -2718,9 +2721,9 @@ uint32_t ld_regular_emitn(uint32_t overflow_ct, unsigned char* readbuf) {
       if ((!is_r2) || (fabs(dxx) >= window_r2)) {
           dxx2 = *dptr++;
           // LPARSONS
-          pval = 1 - chiprob_p(dxx2, 4);
+          pval = chiprob_p(dxx2, 4);
           //printf("ChiSq: %f, p-value: %f\n", dxx2, pval);
-          if (pval <= window_cs) {
+          if ((pval <= window_cs) || (window_cs == 2)) {
 	sptr_cur = memcpya(sptr_cur, g_textbuf, prefix_len);
 	if (is_inter_chr) {
 	  if (marker_uidx2 >= chrom_end2) {
@@ -2748,7 +2751,7 @@ uint32_t ld_regular_emitn(uint32_t overflow_ct, unsigned char* readbuf) {
 	  *sptr_cur++ = ' ';
 	}
 	if (is_r2) {
-	  dxx = fabs(dxx);
+	  dxx = fabs(pval);
 	}
 	sptr_cur = width_force(12, sptr_cur, dtoa_g(dxx, sptr_cur));
 	if (dprime_type) {
