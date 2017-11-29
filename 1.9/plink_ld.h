@@ -53,6 +53,7 @@ typedef struct {
   double prune_last_param; // VIF or r^2 threshold
   double window_cm;
   double window_r2;
+  double window_cs;
   double blocks_min_maf;
   double blocks_inform_frac;
   double flipscan_thresh;

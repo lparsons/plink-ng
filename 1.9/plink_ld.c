@@ -1985,6 +1985,7 @@ static uintptr_t g_ld_uidx2_start;
 static uintptr_t g_ld_marker_uidx2;
 static uintptr_t g_ld_block_idx2;
 static double g_ld_window_r2;
+static double g_ld_window_cs;
 static uint32_t g_ld_is_first_block;
 static uint32_t g_ld_is_inter_chr;
 static uint32_t g_ld_prefix_len;
@@ -2619,6 +2620,7 @@ uint32_t ld_regular_emitn(uint32_t overflow_ct, unsigned char* readbuf) {
   uintptr_t marker_idx2_maxw = g_ld_marker_ctm8;
   uintptr_t marker_uidx2 = g_ld_marker_uidx2;
   double window_r2 = g_ld_window_r2;
+  double window_cs = g_ld_window_cs;
   uint32_t plink_maxsnp = g_ld_plink_maxsnp;
   uint32_t is_inter_chr = g_ld_is_inter_chr;
 
@@ -2640,6 +2642,8 @@ uint32_t ld_regular_emitn(uint32_t overflow_ct, unsigned char* readbuf) {
   char* sptr2;
   double* dptr;
   double dxx;
+  double dxx2;
+  double pval;
   if (block_idx1 == block_size1) {
     goto ld_regular_emitn_ret;
   }
@@ -2712,6 +2716,11 @@ uint32_t ld_regular_emitn(uint32_t overflow_ct, unsigned char* readbuf) {
       next_unset_ul_unsafe_ck(marker_exclude, &marker_uidx2);
       dxx = *dptr++;
       if ((!is_r2) || (fabs(dxx) >= window_r2)) {
+          dxx2 = *dptr++;
+          // LPARSONS
+          pval = 1 - chiprob_p(dxx2, 4);
+          //printf("ChiSq: %f, p-value: %f\n", dxx2, pval);
+          if (pval <= window_cs) {
 	sptr_cur = memcpya(sptr_cur, g_textbuf, prefix_len);
 	if (is_inter_chr) {
 	  if (marker_uidx2 >= chrom_end2) {
@@ -2744,9 +2753,10 @@ uint32_t ld_regular_emitn(uint32_t overflow_ct, unsigned char* readbuf) {
 	sptr_cur = width_force(12, sptr_cur, dtoa_g(dxx, sptr_cur));
 	if (dprime_type) {
 	  *sptr_cur++ = ' ';
-          sptr_cur = width_force(12, sptr_cur, dtoa_g(*dptr++, sptr_cur));
+          sptr_cur = width_force(12, sptr_cur, dtoa_g(dxx2, sptr_cur));
 	}
 	sptr_cur = memcpya(sptr_cur, " \n", 2);
+    }
       } else if (dprime_type) {
 	dptr++;
       }
@@ -5230,8 +5240,9 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
 	    }
 	  }
       // Calculate chi-square and store in DPrime strong_lowci_outer
-      // TODO Add command line params and check appropriately
-      // TODO Update header in output (vased on params)
+      // TODO Add command line param to enable chisq mode
+      // TODO Update header in output (based on params)
+      // TODO Update docs
       // TODO Account for cases where a SNP is missing a value (col or row sum is zero)
       // TODO Account for sex chromosomes
       if (1) {
@@ -5260,10 +5271,10 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
               }
             //   printf("\n");
           }
+          //printf("chi-square: %f\n", chisq);
           dxx = chisq;
-        //   printf("chi-square: %f\n", chisq);
       }
-	  *rptr = dxx;
+	      *rptr = dxx;
 	}
 	rptr++;
       }
@@ -5904,6 +5915,7 @@ int32_t ld_report_regular(pthread_t* threads, Ld_info* ldip, FILE* bedfile, uint
   g_ld_is_first_block = (!parallel_idx);
   if (g_ld_is_r2) {
     g_ld_window_r2 = ldip->window_r2;
+    g_ld_window_cs = ldip->window_cs;
   }
   if (ld_modifier & LD_DX) {
     // this is more like --fast-epistasis under the hood, since it requires the

@@ -8227,6 +8227,15 @@ int32_t main(int32_t argc, char** argv) {
 	  goto main_ret_INVALID_CMDLINE_WWA;
 	}
         ld_info.window_r2 = dxx;
+      } else if (!memcmp(argptr2, "d-window-cs", 12)) {
+	if (enforce_param_ct_range(param_ct, argv[cur_arg], 1, 1)) {
+	  goto main_ret_INVALID_CMDLINE_2A;
+	}
+	if (scan_double(argv[cur_arg + 1], &dxx) || (dxx < 0) || (dxx > 1)) {
+	  sprintf(g_logbuf, "Error: Invalid --ld-window-cs parameter '%s'.\n", argv[cur_arg + 1]);
+	  goto main_ret_INVALID_CMDLINE_WWA;
+	}
+	ld_info.window_cs = dxx;
       } else if (!memcmp(argptr2, "d-snp", 6)) {
         if (enforce_param_ct_range(param_ct, argv[cur_arg], 1, 1)) {
 	  goto main_ret_INVALID_CMDLINE_2A;
