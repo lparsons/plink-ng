@@ -2644,6 +2644,8 @@ uint32_t ld_regular_emitn(uint32_t overflow_ct, unsigned char* readbuf) {
   double* dptr;
   double dxx;
   double dxx2;
+  uintptr_t ularr[sizeof(double) / BYTECT];
+  uint64_t df;
   double pval;
   if (block_idx1 == block_size1) {
     goto ld_regular_emitn_ret;
@@ -2720,9 +2722,12 @@ uint32_t ld_regular_emitn(uint32_t overflow_ct, unsigned char* readbuf) {
       dxx = *dptr++;
       if ((!is_r2) || (fabs(dxx) >= window_r2)) {
           dxx2 = *dptr++;
-          // LPARSONS
-          pval = chiprob_p(dxx2, 4);
-          //printf("ChiSq: %f, p-value: %f\n", dxx2, pval);
+          // LPARSONS - Hack - store degrees of freedom in bottom three bits
+          memcpy(ularr, &dxx2, sizeof(double));
+          ularr[0] &= (7 * ONELU);
+          memcpy(&df, ularr, sizeof(double));
+          pval = chiprob_p(dxx2, df);
+          //printf("ChiSq: %f, df: %lu, p-value: %f\n", dxx2, df, pval);
           if ((pval <= window_cs) || (window_cs == 2)) {
 	sptr_cur = memcpya(sptr_cur, g_textbuf, prefix_len);
 	if (is_inter_chr) {
@@ -5111,8 +5116,10 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
   double expected;
   double observed;
   double chisq;
+  uintptr_t ularr[sizeof(double) / BYTECT];
   uint32_t i;
   uint32_t j;
+  uint32_t df;
   uint32_t xstart2;
   uint32_t xend2;
   uint32_t x2_present;
@@ -5249,13 +5256,22 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
       // TODO Account for cases where a SNP is missing a value (col or row sum is zero)
       // TODO Account for sex chromosomes
       if (1) {
+          df = 0;
           for (i = 0; i <= 2; i++) {
               row_totals[i] = counts[i*3] + counts[i*3+1] + counts[i*3+2];
+              if (row_totals[i] > 0) {
+                  df = df + 1;
+              }
           }
+          df = df - 1;
 
           for (i = 0; i <= 2; i++) {
               col_totals[i] = counts[0+i] + counts[3+i] + counts[6+i];
+              if (col_totals[i] > 0) {
+                  df = df + 1;
+              }
           }
+          df = df - 1;
 
           total = counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5] + counts[6] + counts[7] + counts[8];
 
@@ -5269,16 +5285,22 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
               for (j = 0; j <= 2; j++) {
                   expected = (row_totals[i] * col_totals[j]) / total;
                   observed = counts[((i*3) + j)];
-                //   printf("O:%f E:%f, ", observed, expected);
-                  chisq = chisq + (pow((observed - expected), 2) / expected);
+                  // Account for smaller table
+                  if (expected > 0) {
+                      // TODO Male only counts?
+                      chisq = chisq + (pow((observed - expected), 2) / expected);
+                  }
               }
-            //   printf("\n");
           }
-          //printf("chi-square: %f\n", chisq);
           dxx = chisq;
       }
-	      *rptr = dxx;
-	}
+      // Hack - save df in low three bits
+      memcpy(ularr, &dxx, sizeof(double));
+      ularr[0] &= ~(7 * ONELU);
+      ularr[0] |= df;
+      memcpy(rptr, ularr, sizeof(double));
+      //*rptr = dxx;
+    }
 	rptr++;
       }
     }
