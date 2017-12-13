@@ -5119,6 +5119,8 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
   uintptr_t ularr[sizeof(double) / BYTECT];
   uint32_t i;
   uint32_t j;
+  uint32_t nx1;
+  uint32_t nx2;
   uint32_t df;
   uint32_t xstart2;
   uint32_t xend2;
@@ -5253,28 +5255,28 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
       // TODO Add command line param to enable chisq mode
       // TODO Update header in output (based on params)
       // TODO Update docs
-      // TODO Account for cases where a SNP is missing a value (col or row sum is zero)
       // TODO Account for sex chromosomes
       if (1) {
-          df = 0;
+          nx1 = 0;
+          nx2 = 0;
           for (i = 0; i <= 2; i++) {
               row_totals[i] = counts[i*3] + counts[i*3+1] + counts[i*3+2];
               if (row_totals[i] > 0) {
-                  df = df + 1;
+                  nx1 = nx1 + 1;
               }
           }
-          df = df - 1;
-
           for (i = 0; i <= 2; i++) {
               col_totals[i] = counts[0+i] + counts[3+i] + counts[6+i];
               if (col_totals[i] > 0) {
-                  df = df + 1;
+                  nx2 = nx2 + 1;
               }
           }
-          df = df - 1;
+          df = (nx1 -1 ) * (nx2 - 1);
 
-          total = counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5] + counts[6] + counts[7] + counts[8];
-
+          total = 0;
+          for (i = 0; i <= 9; i++) {
+            total = total + counts[i];
+          }
         //   printf("\n");
         //   printf("\nLength of counts array: %d\n", (int)( sizeof(counts) / sizeof(counts[0]) ));
         //   printf("%d,%d,%d\n", counts[0], counts[1], counts[2]);
