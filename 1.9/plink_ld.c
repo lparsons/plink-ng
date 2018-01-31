@@ -5133,6 +5133,7 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
   }
   // suppress warning
   fill_uint_zero(3, &(tot1[3]));
+
   while (1) {
     idx2_block_size = g_ld_idx2_block_size;
     idx2_block_start = g_ld_idx2_block_start;
@@ -5215,9 +5216,6 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
     // printf("Length of cur_tot2 array: %d\n", (int)( sizeof(cur_tot2) / sizeof(cur_tot2[0]) ));
     // printf("cur_tot2: %d,%d\n", cur_tot2[0], cur_tot2[1]);
 
-    // num_expected = (counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5] + counts[6] + counts[7] + counts[8]) / 9;
-    // printf("Total: \nNum expected: %f\n", num_expected);
-
 	if (em_phase_hethet_nobase(counts, is_x1, is_x2, &freq1x, &freq2x, &freqx1, &freqx2, &freq11)) {
 	  *rptr++ = NAN;
 	  *rptr++ = NAN;
@@ -5230,11 +5228,10 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
     // printf("dxx %f, freq11 %f, freq11_expected %f\n", dxx, freq11, freq11_expected);
     // printf("freq1x %f, freqx1 %f, freqx2 %f, freq2x %f\n", freq1x, freqx1, freqx2, freq2x);
     // printf("freq1x %f, freqx1 %f, freqx2 %f, freq2x %f\n", freq1x, freqx1, freqx2, freq2x);
-	if (fabs(dxx) < SMALL_EPSILON) {
+	if ((fabs(dxx) < SMALL_EPSILON) && !is_dprime) {
 	  *rptr++ = 0;
 	  *rptr = 0;
 	} else {
-
 	  if (is_r2) {
 	    *rptr = fabs(dxx) * dxx / (freq11_expected * freq2x * freqx2);
 	  } else {
@@ -5272,16 +5269,17 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
               }
           }
           df = (nx1 -1 ) * (nx2 - 1);
+          // printf("df: %d\n", df);
 
           total = 0;
           for (i = 0; i <= 9; i++) {
             total = total + counts[i];
           }
-        //   printf("\n");
-        //   printf("\nLength of counts array: %d\n", (int)( sizeof(counts) / sizeof(counts[0]) ));
-        //   printf("%d,%d,%d\n", counts[0], counts[1], counts[2]);
-        //   printf("%d,%d,%d\n", counts[3], counts[4], counts[5]);
-        //   printf("%d,%d,%d\n", counts[6], counts[7], counts[8]);
+          // printf("\n");
+          // printf("\nLength of counts array: %d\n", (int)( sizeof(counts) / sizeof(counts[0]) ));
+          // printf("%d,%d,%d\n", counts[0], counts[1], counts[2]);
+          // printf("%d,%d,%d\n", counts[3], counts[4], counts[5]);
+          // printf("%d,%d,%d\n", counts[6], counts[7], counts[8]);
           chisq = 0;
           for (i = 0; i <= 2; i++) {
               for (j = 0; j <= 2; j++) {
@@ -5295,6 +5293,8 @@ THREAD_RET_TYPE ld_dprime_thread(void* arg) {
               }
           }
           dxx = chisq;
+          // printf("chisq: %f\n", chisq);
+
       }
       // Hack - save df in low three bits
       memcpy(ularr, &dxx, sizeof(double));
